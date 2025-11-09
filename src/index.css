@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* Rete.js editor styles */
+.rete {
+  position: relative;
+  font-size: 1rem;
+  width: 100%;
+  height: 100vh;
+}
+
+.rete .background {
+  background-color: #1a1a1a;
+  background-image: radial-gradient(circle, #2a2a2a 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.rete .node {
+  background: #2a2a3a;
+  border: 2px solid #4a4a5a;
+  border-radius: 8px;
+  cursor: pointer;
+  min-width: 180px;
+  padding: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.rete .node.selected {
+  border-color: #646cff;
+  box-shadow: 0 0 0 3px rgba(100, 108, 255, 0.3);
+}
+
+.rete .node .title {
+  color: #fff;
+  font-weight: 600;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #4a4a5a;
+}
+
+.rete .socket {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  cursor: pointer;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.rete .input-socket {
+  background: #96f;
+}
+
+.rete .output-socket {
+  background: #6c6;
+}
+
+.rete .connection .main-path {
+  stroke-width: 3px;
+  fill: none;
+}
+
+.rete .control {
+  margin: 4px 0;
+  color: #ccc;
+  font-size: 0.9rem;
+}
+
+.rete .control input,
+.rete .control select,
+.rete .control textarea {
+  background: #1a1a2a;
+  border: 1px solid #4a4a5a;
+  border-radius: 4px;
+  color: #fff;
+  padding: 6px 8px;
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+.rete .control input:focus,
+.rete .control select:focus,
+.rete .control textarea:focus {
+  outline: none;
+  border-color: #646cff;
+}

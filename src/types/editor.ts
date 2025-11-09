@@ -1,5 +1,5 @@
 import { ClassicPreset } from 'rete';
-import { DBTNodeData } from './dbt';
+import type { DBTNodeData } from './dbt';
 
 export class Connection extends ClassicPreset.Connection<
   ClassicPreset.Node,

@@ -1,4 +1,4 @@
-import { DBTNodeData } from '../types/dbt';
+import type { DBTNodeData } from '../types/dbt';
 
 export class DBTGenerator {
   static generateModelSQL(node: DBTNodeData): string {

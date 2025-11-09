@@ -92,3 +92,81 @@ body {
   outline: none;
   border-color: #646cff;
 }
+
+/* Minimap styles */
+.minimap {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  background: rgba(26, 26, 42, 0.95);
+  border: 2px solid #4a4a5a;
+  border-radius: 8px;
+  width: 200px;
+  height: 150px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+}
+
+.minimap canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.minimap .viewport {
+  border: 2px solid #646cff;
+  background: rgba(100, 108, 255, 0.1);
+  pointer-events: all;
+  cursor: move;
+}
+
+/* Node type color coding */
+.rete .node[data-node-type="source"] {
+  border-color: #9f7aea;
+  background: linear-gradient(135deg, #2a2a3a 0%, #332a3a 100%);
+}
+
+.rete .node[data-node-type="model"] {
+  border-color: #4299e1;
+  background: linear-gradient(135deg, #2a2a3a 0%, #2a333a 100%);
+}
+
+.rete .node[data-node-type="transform"] {
+  border-color: #48bb78;
+  background: linear-gradient(135deg, #2a2a3a 0%, #2a3a2f 100%);
+}
+
+.rete .node[data-node-type="snapshot"] {
+  border-color: #ed8936;
+  background: linear-gradient(135deg, #2a2a3a 0%, #3a322a 100%);
+}
+
+.rete .node[data-node-type="seed"] {
+  border-color: #ecc94b;
+  background: linear-gradient(135deg, #2a2a3a 0%, #3a382a 100%);
+}
+
+.rete .node[data-node-type="test"] {
+  border-color: #f56565;
+  background: linear-gradient(135deg, #2a2a3a 0%, #3a2a2a 100%);
+}
+
+/* Connection colors based on node type */
+.rete .connection[data-source-type="source"] .main-path {
+  stroke: #9f7aea;
+}
+
+.rete .connection[data-source-type="model"] .main-path {
+  stroke: #4299e1;
+}
+
+.rete .connection[data-source-type="transform"] .main-path {
+  stroke: #48bb78;
+}
+
+/* Hover effects */
+.rete .node:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+  transition: all 0.2s ease;
+}

@@ -1,38 +1,66 @@
 import React from 'react';
 import { ClassicPreset } from 'rete';
-import { DBTMaterializationType } from '../types/dbt';
 
 export class TextControl extends ClassicPreset.Control {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  label: string;
+
   constructor(
-    public value: string,
-    public onChange: (value: string) => void,
-    public placeholder: string = '',
-    public label: string = ''
+    value: string,
+    onChange: (value: string) => void,
+    placeholder: string = '',
+    label: string = ''
   ) {
     super();
+    this.value = value;
+    this.onChange = onChange;
+    this.placeholder = placeholder;
+    this.label = label;
   }
 }
 
 export class TextAreaControl extends ClassicPreset.Control {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  label: string;
+  rows: number;
+
   constructor(
-    public value: string,
-    public onChange: (value: string) => void,
-    public placeholder: string = 'Enter SQL...',
-    public label: string = '',
-    public rows: number = 6
+    value: string,
+    onChange: (value: string) => void,
+    placeholder: string = 'Enter SQL...',
+    label: string = '',
+    rows: number = 6
   ) {
     super();
+    this.value = value;
+    this.onChange = onChange;
+    this.placeholder = placeholder;
+    this.label = label;
+    this.rows = rows;
   }
 }
 
 export class SelectControl extends ClassicPreset.Control {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  label: string;
+
   constructor(
-    public value: string,
-    public onChange: (value: string) => void,
-    public options: { value: string; label: string }[],
-    public label: string = ''
+    value: string,
+    onChange: (value: string) => void,
+    options: { value: string; label: string }[],
+    label: string = ''
   ) {
     super();
+    this.value = value;
+    this.onChange = onChange;
+    this.options = options;
+    this.label = label;
   }
 }
 

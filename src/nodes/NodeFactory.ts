@@ -1,6 +1,5 @@
-import { ClassicPreset } from 'rete';
-import { DBTNodeData, DBTMaterializationType } from '../types/dbt';
-import { SourceNode, ModelNode, TransformNode, Socket } from '../types/editor';
+import type { DBTNodeData, DBTMaterializationType } from '../types/dbt';
+import { SourceNode, ModelNode, TransformNode } from '../types/editor';
 import { TextControl, TextAreaControl, SelectControl } from '../components/CustomControls';
 
 export class NodeFactory {

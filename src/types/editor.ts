@@ -14,7 +14,7 @@ export class Socket extends ClassicPreset.Socket {
 
 export type Schemes = {
   Connection: Connection;
-  Node: DBTNode | SourceNode | ModelNode | TransformNode;
+  Node: DBTNode | SourceNode | ModelNode | TransformNode | SnapshotNode | SeedNode | TestNode | MacroNode;
 };
 
 export class DBTNode extends ClassicPreset.Node {
@@ -72,5 +72,66 @@ export class TransformNode extends ClassicPreset.Node<
     this.data = data;
     this.addInput('input', new ClassicPreset.Input(new Socket('data'), 'Input', true));
     this.addOutput('value', new ClassicPreset.Output(new Socket('data'), 'Output'));
+  }
+}
+
+export class SnapshotNode extends ClassicPreset.Node<
+  { input: ClassicPreset.Socket },
+  { value: ClassicPreset.Socket }
+> {
+  width = 220;
+  height = 220;
+  data: DBTNodeData;
+
+  constructor(data: DBTNodeData) {
+    super(data.name);
+    this.data = data;
+    this.addInput('input', new ClassicPreset.Input(new Socket('data'), 'Input', true));
+    this.addOutput('value', new ClassicPreset.Output(new Socket('data'), 'Output'));
+  }
+}
+
+export class SeedNode extends ClassicPreset.Node<
+  {},
+  { value: ClassicPreset.Socket }
+> {
+  width = 200;
+  height = 160;
+  data: DBTNodeData;
+
+  constructor(data: DBTNodeData) {
+    super(data.name);
+    this.data = data;
+    this.addOutput('value', new ClassicPreset.Output(new Socket('data'), 'Data'));
+  }
+}
+
+export class TestNode extends ClassicPreset.Node<
+  { input: ClassicPreset.Socket },
+  {}
+> {
+  width = 200;
+  height = 180;
+  data: DBTNodeData;
+
+  constructor(data: DBTNodeData) {
+    super(data.name);
+    this.data = data;
+    this.addInput('input', new ClassicPreset.Input(new Socket('data'), 'Input'));
+  }
+}
+
+export class MacroNode extends ClassicPreset.Node<
+  {},
+  { value: ClassicPreset.Socket }
+> {
+  width = 220;
+  height = 200;
+  data: DBTNodeData;
+
+  constructor(data: DBTNodeData) {
+    super(data.name);
+    this.data = data;
+    this.addOutput('value', new ClassicPreset.Output(new Socket('data'), 'Macro'));
   }
 }

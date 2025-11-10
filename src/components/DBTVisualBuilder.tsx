@@ -208,6 +208,34 @@ export const DBTVisualBuilder: React.FC = () => {
     await editorInstanceRef.current.addNode(node);
   };
 
+  const addSnapshotNode = async () => {
+    if (!editorInstanceRef.current) return;
+
+    const node = NodeFactory.createSnapshotNode('new_snapshot');
+    await editorInstanceRef.current.addNode(node);
+  };
+
+  const addSeedNode = async () => {
+    if (!editorInstanceRef.current) return;
+
+    const node = NodeFactory.createSeedNode('new_seed');
+    await editorInstanceRef.current.addNode(node);
+  };
+
+  const addTestNode = async () => {
+    if (!editorInstanceRef.current) return;
+
+    const node = NodeFactory.createTestNode('new_test');
+    await editorInstanceRef.current.addNode(node);
+  };
+
+  const addMacroNode = async () => {
+    if (!editorInstanceRef.current) return;
+
+    const node = NodeFactory.createMacroNode('new_macro');
+    await editorInstanceRef.current.addNode(node);
+  };
+
   const saveToLocalStorage = (editor: NodeEditor<Schemes>) => {
     try {
       const nodes = editor.getNodes();
@@ -343,27 +371,55 @@ export const DBTVisualBuilder: React.FC = () => {
           <h1 className="text-xl font-bold text-white">DBT Visual Builder</h1>
 
           {/* Add Node Buttons */}
-          <div className="flex gap-2 border-l border-gray-600 pl-3">
+          <div className="flex gap-2 border-l border-gray-600 pl-3 flex-wrap">
             <button
               onClick={addSourceNode}
               className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm font-medium transition-colors"
-              title="Add Source Node (Ctrl+1)"
+              title="Add Source Node"
             >
               + Source
             </button>
             <button
               onClick={addModelNode}
               className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors"
-              title="Add Model Node (Ctrl+2)"
+              title="Add Model Node"
             >
               + Model
             </button>
             <button
               onClick={addTransformNode}
               className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition-colors"
-              title="Add Transform Node (Ctrl+3)"
+              title="Add Transform Node"
             >
               + Transform
+            </button>
+            <button
+              onClick={addSnapshotNode}
+              className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded text-sm font-medium transition-colors"
+              title="Add Snapshot Node"
+            >
+              + Snapshot
+            </button>
+            <button
+              onClick={addSeedNode}
+              className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-sm font-medium transition-colors"
+              title="Add Seed Node"
+            >
+              + Seed
+            </button>
+            <button
+              onClick={addTestNode}
+              className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition-colors"
+              title="Add Test Node"
+            >
+              + Test
+            </button>
+            <button
+              onClick={addMacroNode}
+              className="px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white rounded text-sm font-medium transition-colors"
+              title="Add Macro Node"
+            >
+              + Macro
             </button>
           </div>
 

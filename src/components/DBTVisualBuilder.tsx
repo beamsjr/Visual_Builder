@@ -32,6 +32,7 @@ export const DBTVisualBuilder: React.FC = () => {
   const areaInstanceRef = useRef<AreaPlugin<Schemes, AreaExtra> | null>(null);
   const arrangeInstanceRef = useRef<AutoArrangePlugin<Schemes> | null>(null);
   const historyManagerRef = useRef<HistoryManager>(new HistoryManager());
+  const isRestoringRef = useRef(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
   const [copiedNode, setCopiedNode] = useState<any>(null);
@@ -135,6 +136,11 @@ export const DBTVisualBuilder: React.FC = () => {
       if (!loaded) {
         await addSampleNodes(editor, area, arrange);
       }
+
+      // Capture initial state for undo/redo
+      setTimeout(() => {
+        captureState();
+      }, 100);
 
       // Setup keyboard shortcuts
       setupKeyboardShortcuts(editor, area);
@@ -312,7 +318,7 @@ export const DBTVisualBuilder: React.FC = () => {
   };
 
   const captureState = () => {
-    if (!editorInstanceRef.current) return;
+    if (!editorInstanceRef.current || isRestoringRef.current) return;
 
     const nodes = editorInstanceRef.current.getNodes();
     const connections = editorInstanceRef.current.getConnections();
@@ -341,26 +347,126 @@ export const DBTVisualBuilder: React.FC = () => {
     setCanRedo(historyManagerRef.current.canRedo());
   };
 
-  const undo = () => {
+  const undo = async () => {
     const state = historyManagerRef.current.undo();
     if (state) {
-      restoreState(state);
+      await restoreState(state);
       updateHistoryButtons();
     }
   };
 
-  const redo = () => {
+  const redo = async () => {
     const state = historyManagerRef.current.redo();
     if (state) {
-      restoreState(state);
+      await restoreState(state);
       updateHistoryButtons();
     }
   };
 
-  const restoreState = (_state: any) => {
-    // For now, just log - full restoration would require rebuilding nodes
-    console.log('Restore state:', _state);
-    // TODO: Implement full state restoration
+  const restoreState = async (state: any) => {
+    if (!editorInstanceRef.current || !areaInstanceRef.current) return;
+
+    const editor = editorInstanceRef.current;
+    const area = areaInstanceRef.current;
+
+    // Set flag to prevent state capture during restoration
+    isRestoringRef.current = true;
+
+    try {
+      const currentNodes = editor.getNodes();
+      const currentConnections = editor.getConnections();
+
+      // Clear all existing nodes and connections
+      currentConnections.forEach(conn => {
+        editor.removeConnection(conn.id);
+      });
+      currentNodes.forEach(node => {
+        editor.removeNode(node.id);
+      });
+
+      // Map to store created nodes by their saved ID
+      const nodeMap = new Map<string, any>();
+
+      // Recreate nodes
+      for (const savedNode of state.nodes) {
+        const data = savedNode.data;
+        let newNode;
+
+        // Create node based on type
+        switch (data.type) {
+          case 'source':
+            newNode = NodeFactory.createSourceNode(
+              data.name,
+              data.schema || '',
+              data.name || ''
+            );
+            break;
+          case 'model':
+            if (data.materialization === 'ephemeral') {
+              newNode = NodeFactory.createTransformNode(data.name);
+            } else {
+              newNode = NodeFactory.createModelNode(data.name, data.materialization);
+            }
+            break;
+          case 'snapshot':
+            newNode = NodeFactory.createSnapshotNode(data.name);
+            break;
+          case 'seed':
+            newNode = NodeFactory.createSeedNode(data.name);
+            break;
+          case 'test':
+            newNode = NodeFactory.createTestNode(data.name);
+            break;
+          default:
+            newNode = NodeFactory.createTransformNode(data.name);
+        }
+
+        if (newNode) {
+          // Override with saved data
+          newNode.id = savedNode.id;
+          newNode.label = savedNode.label;
+          (newNode as any).data = { ...data };
+
+          // Add to editor
+          await editor.addNode(newNode);
+
+          // Set position if available
+          if (savedNode.position) {
+            await area.translate(newNode.id, savedNode.position);
+          }
+
+          nodeMap.set(savedNode.id, newNode);
+        }
+      }
+
+      // Recreate connections
+      for (const savedConn of state.connections) {
+        const sourceNode = nodeMap.get(savedConn.source);
+        const targetNode = nodeMap.get(savedConn.target);
+
+        if (sourceNode && targetNode) {
+          try {
+            await editor.addConnection(
+              new ClassicPreset.Connection(
+                sourceNode as any,
+                savedConn.sourceOutput as never,
+                targetNode as any,
+                savedConn.targetInput as never
+              )
+            );
+          } catch (error) {
+            console.warn('Failed to restore connection:', error);
+          }
+        }
+      }
+
+      console.log('State restored successfully');
+    } catch (error) {
+      console.error('Failed to restore state:', error);
+    } finally {
+      // Reset flag after restoration completes
+      isRestoringRef.current = false;
+    }
   };
 
   const copyNode = (nodeId: string) => {

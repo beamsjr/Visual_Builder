@@ -32,7 +32,9 @@ import { DBTExporter } from '../utils/dbtExporter';
 import { DBTImporter } from '../utils/dbtImporter';
 import { HistoryManager } from '../utils/historyManager';
 import { DBTValidator } from '../utils/validator';
+import { NodeTemplateManager } from '../utils/nodeTemplates';
 import type { ValidationIssue } from '../utils/validator';
+import type { NodeTemplate } from '../utils/nodeTemplates';
 import type { DBTNodeData } from '../types/dbt';
 
 type AreaExtra = ReactArea2D<Schemes> | MinimapExtra;
@@ -52,6 +54,8 @@ export const DBTVisualBuilder: React.FC = () => {
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
   const [showValidation, setShowValidation] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [quickAddSearch, setQuickAddSearch] = useState('');
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
   const [copiedNode, setCopiedNode] = useState<any>(null);
   const [canUndo, setCanUndo] = useState(false);
@@ -703,6 +707,18 @@ export const DBTVisualBuilder: React.FC = () => {
 
   const setupKeyboardShortcuts = (editor: NodeEditor<Schemes>, _area: AreaPlugin<Schemes, AreaExtra>) => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Quick Add Menu - Space or N
+      if ((e.key === ' ' || e.key === 'n' || e.key === 'N') && !e.ctrlKey && !e.metaKey) {
+        // Only if not typing in an input
+        const target = e.target as HTMLElement;
+        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && !target.isContentEditable) {
+          setShowQuickAdd(!showQuickAdd);
+          setQuickAddSearch('');
+          e.preventDefault();
+          return;
+        }
+      }
+
       // Help panel - ? or F1
       if (e.key === '?' || e.key === 'F1') {
         setShowHelp(!showHelp);
@@ -715,6 +731,7 @@ export const DBTVisualBuilder: React.FC = () => {
         setShowHelp(false);
         setShowValidation(false);
         setShowExportMenu(false);
+        setShowQuickAdd(false);
         setContextMenu(null);
         e.preventDefault();
         return;
@@ -1020,6 +1037,58 @@ export const DBTVisualBuilder: React.FC = () => {
 
     const counts = DBTValidator.getIssueCounts(issues);
     console.log(`Validation complete: ${counts.error} errors, ${counts.warning} warnings, ${counts.info} info`);
+  };
+
+  const createNodeFromTemplate = async (template: NodeTemplate) => {
+    if (!editorInstanceRef.current) return;
+
+    const baseName = template.name.replace(/\s+/g, '_').toLowerCase();
+    const timestamp = Date.now();
+    const nodeName = `${baseName}_${timestamp}`;
+
+    let newNode;
+
+    // Create node based on template category
+    switch (template.category) {
+      case 'source':
+        newNode = NodeFactory.createSourceNode(nodeName, template.data.schema || '', nodeName);
+        break;
+      case 'model':
+      case 'transform':
+        newNode = NodeFactory.createModelNode(nodeName, template.data.materialization || 'table');
+        break;
+      case 'snapshot':
+        newNode = NodeFactory.createSnapshotNode(nodeName);
+        break;
+      case 'seed':
+        newNode = NodeFactory.createSeedNode(nodeName);
+        break;
+      case 'test':
+        newNode = NodeFactory.createTestNode(nodeName);
+        break;
+      case 'macro':
+        newNode = NodeFactory.createTransformNode(nodeName);
+        break;
+      default:
+        newNode = NodeFactory.createModelNode(nodeName, 'table');
+    }
+
+    if (newNode) {
+      // Apply template data
+      const nodeData = (newNode as any).data;
+      if (template.data.description) nodeData.description = template.data.description;
+      if (template.data.sql) nodeData.sql = template.data.sql;
+      if (template.data.tags) nodeData.tags = template.data.tags;
+      if (template.data.group) nodeData.group = template.data.group;
+      if (template.data.columns) nodeData.columns = template.data.columns;
+
+      await editorInstanceRef.current.addNode(newNode);
+      captureState();
+      console.log(`Created node from template: ${template.name}`);
+    }
+
+    setShowQuickAdd(false);
+    setQuickAddSearch('');
   };
 
   const handleImportFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1371,6 +1440,57 @@ export const DBTVisualBuilder: React.FC = () => {
         )}
       </div>
 
+      {/* Quick Add Menu */}
+      {showQuickAdd && (
+        <div className="absolute top-1/4 left-1/2 transform -translate-x-1/2 w-[600px] bg-gray-800 border border-gray-700 rounded shadow-lg z-50 overflow-hidden flex flex-col max-h-[500px]">
+          <div className="p-3 bg-gray-700 border-b border-gray-600">
+            <input
+              type="text"
+              placeholder="Search templates... (type to filter)"
+              value={quickAddSearch}
+              onChange={(e) => setQuickAddSearch(e.target.value)}
+              autoFocus
+              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white text-sm placeholder-gray-400 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+          <div className="flex-1 overflow-y-auto p-2">
+            {NodeTemplateManager.getAllTemplates()
+              .filter(template =>
+                !quickAddSearch ||
+                template.name.toLowerCase().includes(quickAddSearch.toLowerCase()) ||
+                template.description.toLowerCase().includes(quickAddSearch.toLowerCase()) ||
+                template.category.toLowerCase().includes(quickAddSearch.toLowerCase())
+              )
+              .map((template) => (
+                <button
+                  key={template.id}
+                  onClick={() => createNodeFromTemplate(template)}
+                  className="w-full text-left p-3 hover:bg-gray-700 rounded transition-colors mb-1 flex items-start gap-3"
+                >
+                  <span className="text-2xl">{template.icon}</span>
+                  <div className="flex-1">
+                    <div className="font-semibold text-white">{template.name}</div>
+                    <div className="text-xs text-gray-400 mt-1">{template.description}</div>
+                    <div className="flex gap-2 mt-1">
+                      <span className="text-xs px-2 py-0.5 bg-gray-600 rounded text-gray-300">
+                        {template.category}
+                      </span>
+                      {template.data.tags && template.data.tags.map(tag => (
+                        <span key={tag} className="text-xs px-2 py-0.5 bg-blue-900/30 rounded text-blue-300">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </button>
+              ))}
+          </div>
+          <div className="p-3 bg-gray-700 border-t border-gray-600 text-center text-xs text-gray-400">
+            Press <kbd className="px-2 py-1 bg-gray-600 border border-gray-500 rounded">Space</kbd> or <kbd className="px-2 py-1 bg-gray-600 border border-gray-500 rounded">N</kbd> to toggle • <kbd className="px-2 py-1 bg-gray-600 border border-gray-500 rounded">Esc</kbd> to close
+          </div>
+        </div>
+      )}
+
       {/* Help Panel */}
       {showHelp && (
         <div className="absolute top-20 left-1/2 transform -translate-x-1/2 w-[800px] max-h-[calc(100vh-6rem)] bg-gray-800 border border-gray-700 rounded shadow-lg z-50 overflow-hidden flex flex-col">
@@ -1389,6 +1509,10 @@ export const DBTVisualBuilder: React.FC = () => {
               <div>
                 <h4 className="text-white font-semibold mb-3 text-sm uppercase tracking-wide">General</h4>
                 <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300 text-sm">Quick Add menu</span>
+                    <kbd className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs text-white">Space</kbd>
+                  </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-300 text-sm">Show this help</span>
                     <kbd className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs text-white">?</kbd>
@@ -1493,6 +1617,9 @@ export const DBTVisualBuilder: React.FC = () => {
                 <h4 className="text-white font-semibold mb-3 text-sm uppercase tracking-wide">Tips</h4>
                 <div className="space-y-2">
                   <div className="text-gray-300 text-sm">
+                    💡 Use Quick Add (Space) for node templates
+                  </div>
+                  <div className="text-gray-300 text-sm">
                     💡 Use Auto-Arrange to organize nodes
                   </div>
                   <div className="text-gray-300 text-sm">
@@ -1500,9 +1627,6 @@ export const DBTVisualBuilder: React.FC = () => {
                   </div>
                   <div className="text-gray-300 text-sm">
                     💡 Export as ZIP for complete DBT project
-                  </div>
-                  <div className="text-gray-300 text-sm">
-                    💡 Use Monaco editor for SQL syntax highlighting
                   </div>
                 </div>
               </div>

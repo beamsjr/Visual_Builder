@@ -51,6 +51,7 @@ export const DBTVisualBuilder: React.FC = () => {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
   const [showValidation, setShowValidation] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
   const [copiedNode, setCopiedNode] = useState<any>(null);
   const [canUndo, setCanUndo] = useState(false);
@@ -702,6 +703,23 @@ export const DBTVisualBuilder: React.FC = () => {
 
   const setupKeyboardShortcuts = (editor: NodeEditor<Schemes>, _area: AreaPlugin<Schemes, AreaExtra>) => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Help panel - ? or F1
+      if (e.key === '?' || e.key === 'F1') {
+        setShowHelp(!showHelp);
+        e.preventDefault();
+        return;
+      }
+
+      // Escape - close panels
+      if (e.key === 'Escape') {
+        setShowHelp(false);
+        setShowValidation(false);
+        setShowExportMenu(false);
+        setContextMenu(null);
+        e.preventDefault();
+        return;
+      }
+
       // Undo
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         undo();
@@ -1252,6 +1270,13 @@ export const DBTVisualBuilder: React.FC = () => {
           {/* File Operations */}
           <div className="ml-auto flex gap-2">
             <button
+              onClick={() => setShowHelp(!showHelp)}
+              className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm font-medium transition-colors"
+              title="Keyboard Shortcuts (? or F1)"
+            >
+              ❓ Help
+            </button>
+            <button
               onClick={() => fileInputRef.current?.click()}
               className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm font-medium transition-colors"
               title="Import DBT Files (.yml, .yaml, .sql)"
@@ -1345,6 +1370,149 @@ export const DBTVisualBuilder: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Help Panel */}
+      {showHelp && (
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 w-[800px] max-h-[calc(100vh-6rem)] bg-gray-800 border border-gray-700 rounded shadow-lg z-50 overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between p-4 bg-gray-700 border-b border-gray-600">
+            <h3 className="text-white font-bold text-lg">⌨️ Keyboard Shortcuts</h3>
+            <button
+              onClick={() => setShowHelp(false)}
+              className="text-gray-400 hover:text-white text-xl"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="grid grid-cols-2 gap-6">
+              {/* General */}
+              <div>
+                <h4 className="text-white font-semibold mb-3 text-sm uppercase tracking-wide">General</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300 text-sm">Show this help</span>
+                    <kbd className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs text-white">?</kbd>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300 text-sm">Show help (alt)</span>
+                    <kbd className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs text-white">F1</kbd>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300 text-sm">Close panels</span>
+                    <kbd className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs text-white">Esc</kbd>
+                  </div>
+                </div>
+              </div>
+
+              {/* Editing */}
+              <div>
+                <h4 className="text-white font-semibold mb-3 text-sm uppercase tracking-wide">Editing</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300 text-sm">Undo</span>
+                    <kbd className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs text-white">Ctrl+Z</kbd>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300 text-sm">Redo</span>
+                    <kbd className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs text-white">Ctrl+Y</kbd>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300 text-sm">Save project</span>
+                    <kbd className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs text-white">Ctrl+S</kbd>
+                  </div>
+                </div>
+              </div>
+
+              {/* Node Operations */}
+              <div>
+                <h4 className="text-white font-semibold mb-3 text-sm uppercase tracking-wide">Node Operations</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300 text-sm">Copy node</span>
+                    <kbd className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs text-white">Ctrl+C</kbd>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300 text-sm">Paste node</span>
+                    <kbd className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs text-white">Ctrl+V</kbd>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300 text-sm">Duplicate node</span>
+                    <kbd className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs text-white">Ctrl+D</kbd>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300 text-sm">Delete node</span>
+                    <kbd className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs text-white">Del</kbd>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mouse Actions */}
+              <div>
+                <h4 className="text-white font-semibold mb-3 text-sm uppercase tracking-wide">Mouse Actions</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300 text-sm">Context menu</span>
+                    <kbd className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs text-white">Right Click</kbd>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300 text-sm">Select node</span>
+                    <kbd className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs text-white">Click</kbd>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300 text-sm">Multi-select</span>
+                    <kbd className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs text-white">Ctrl+Click</kbd>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300 text-sm">Pan canvas</span>
+                    <kbd className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs text-white">Drag</kbd>
+                  </div>
+                </div>
+              </div>
+
+              {/* Features */}
+              <div>
+                <h4 className="text-white font-semibold mb-3 text-sm uppercase tracking-wide">Features</h4>
+                <div className="space-y-2">
+                  <div className="text-gray-300 text-sm">
+                    <span className="text-purple-400">🔗</span> Click nodes to show dependency lineage
+                  </div>
+                  <div className="text-gray-300 text-sm">
+                    <span className="text-blue-400">🏷️</span> Use tags to categorize models
+                  </div>
+                  <div className="text-gray-300 text-sm">
+                    <span className="text-green-400">📁</span> Use groups to organize nodes
+                  </div>
+                  <div className="text-gray-300 text-sm">
+                    <span className="text-yellow-400">✓</span> Run validation to find issues
+                  </div>
+                </div>
+              </div>
+
+              {/* Tips */}
+              <div>
+                <h4 className="text-white font-semibold mb-3 text-sm uppercase tracking-wide">Tips</h4>
+                <div className="space-y-2">
+                  <div className="text-gray-300 text-sm">
+                    💡 Use Auto-Arrange to organize nodes
+                  </div>
+                  <div className="text-gray-300 text-sm">
+                    💡 Import existing DBT YAML/SQL files
+                  </div>
+                  <div className="text-gray-300 text-sm">
+                    💡 Export as ZIP for complete DBT project
+                  </div>
+                  <div className="text-gray-300 text-sm">
+                    💡 Use Monaco editor for SQL syntax highlighting
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="p-4 bg-gray-700 border-t border-gray-600 text-center text-sm text-gray-400">
+            Press <kbd className="px-2 py-1 bg-gray-600 border border-gray-500 rounded text-xs">?</kbd> or <kbd className="px-2 py-1 bg-gray-600 border border-gray-500 rounded text-xs">F1</kbd> to toggle this help panel
+          </div>
+        </div>
+      )}
 
       {/* Editor Canvas */}
       {/* Validation Panel */}

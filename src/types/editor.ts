@@ -38,6 +38,7 @@ export class SourceNode extends ClassicPreset.Node<
 
   constructor(data: DBTNodeData) {
     super(data.name);
+    this.id = data.id; // Set ID before adding outputs so port references match
     this.data = data;
     this.addOutput('value', new ClassicPreset.Output(new Socket('data'), 'Data'));
   }
@@ -53,6 +54,7 @@ export class ModelNode extends ClassicPreset.Node<
 
   constructor(data: DBTNodeData) {
     super(data.name);
+    this.id = data.id; // Set ID before adding inputs/outputs so port references match
     this.data = data;
     this.addInput('input', new ClassicPreset.Input(new Socket('data'), 'Input', true));
     this.addOutput('value', new ClassicPreset.Output(new Socket('data'), 'Output'));
@@ -69,6 +71,7 @@ export class TransformNode extends ClassicPreset.Node<
 
   constructor(data: DBTNodeData) {
     super(data.name);
+    this.id = data.id; // Set ID before adding inputs/outputs so port references match
     this.data = data;
     this.addInput('input', new ClassicPreset.Input(new Socket('data'), 'Input', true));
     this.addOutput('value', new ClassicPreset.Output(new Socket('data'), 'Output'));
@@ -85,6 +88,7 @@ export class SnapshotNode extends ClassicPreset.Node<
 
   constructor(data: DBTNodeData) {
     super(data.name);
+    this.id = data.id; // Set ID before adding inputs/outputs so port references match
     this.data = data;
     this.addInput('input', new ClassicPreset.Input(new Socket('data'), 'Input', true));
     this.addOutput('value', new ClassicPreset.Output(new Socket('data'), 'Output'));
@@ -101,6 +105,7 @@ export class SeedNode extends ClassicPreset.Node<
 
   constructor(data: DBTNodeData) {
     super(data.name);
+    this.id = data.id; // Set ID before adding outputs so port references match
     this.data = data;
     this.addOutput('value', new ClassicPreset.Output(new Socket('data'), 'Data'));
   }
@@ -116,6 +121,7 @@ export class TestNode extends ClassicPreset.Node<
 
   constructor(data: DBTNodeData) {
     super(data.name);
+    this.id = data.id; // Set ID before adding inputs so port references match
     this.data = data;
     this.addInput('input', new ClassicPreset.Input(new Socket('data'), 'Input'));
   }
@@ -131,6 +137,7 @@ export class MacroNode extends ClassicPreset.Node<
 
   constructor(data: DBTNodeData) {
     super(data.name);
+    this.id = data.id; // Set ID before adding outputs so port references match
     this.data = data;
     this.addOutput('value', new ClassicPreset.Output(new Socket('data'), 'Macro'));
   }

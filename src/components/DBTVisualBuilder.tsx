@@ -16,10 +16,12 @@ import {
   SelectControl,
   ColumnControl
 } from './CustomControls';
+import { ContextMenu } from './ContextMenu';
 import { NodeFactory } from '../nodes/NodeFactory';
 import type { Schemes } from '../types/editor';
 import { DBTGenerator } from '../utils/dbtGenerator';
 import { DBTExporter } from '../utils/dbtExporter';
+import { HistoryManager } from '../utils/historyManager';
 import type { DBTNodeData } from '../types/dbt';
 
 type AreaExtra = ReactArea2D<Schemes>;
@@ -29,7 +31,12 @@ export const DBTVisualBuilder: React.FC = () => {
   const editorInstanceRef = useRef<NodeEditor<Schemes> | null>(null);
   const areaInstanceRef = useRef<AreaPlugin<Schemes, AreaExtra> | null>(null);
   const arrangeInstanceRef = useRef<AutoArrangePlugin<Schemes> | null>(null);
+  const historyManagerRef = useRef<HistoryManager>(new HistoryManager());
   const [searchTerm, setSearchTerm] = useState('');
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
+  const [copiedNode, setCopiedNode] = useState<any>(null);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
 
   // Search functionality - highlight matching nodes
   useEffect(() => {
@@ -198,6 +205,7 @@ export const DBTVisualBuilder: React.FC = () => {
 
     const node = NodeFactory.createSourceNode('new_source', 'raw', 'table_name');
     await editorInstanceRef.current.addNode(node);
+    captureState();
   };
 
   const addModelNode = async () => {
@@ -205,6 +213,7 @@ export const DBTVisualBuilder: React.FC = () => {
 
     const node = NodeFactory.createModelNode('new_model', 'table');
     await editorInstanceRef.current.addNode(node);
+    captureState();
   };
 
   const addTransformNode = async () => {
@@ -212,6 +221,7 @@ export const DBTVisualBuilder: React.FC = () => {
 
     const node = NodeFactory.createTransformNode('new_transform');
     await editorInstanceRef.current.addNode(node);
+    captureState();
   };
 
   const addSnapshotNode = async () => {
@@ -219,6 +229,7 @@ export const DBTVisualBuilder: React.FC = () => {
 
     const node = NodeFactory.createSnapshotNode('new_snapshot');
     await editorInstanceRef.current.addNode(node);
+    captureState();
   };
 
   const addSeedNode = async () => {
@@ -226,6 +237,7 @@ export const DBTVisualBuilder: React.FC = () => {
 
     const node = NodeFactory.createSeedNode('new_seed');
     await editorInstanceRef.current.addNode(node);
+    captureState();
   };
 
   const addTestNode = async () => {
@@ -233,6 +245,7 @@ export const DBTVisualBuilder: React.FC = () => {
 
     const node = NodeFactory.createTestNode('new_test');
     await editorInstanceRef.current.addNode(node);
+    captureState();
   };
 
   const addMacroNode = async () => {
@@ -240,6 +253,7 @@ export const DBTVisualBuilder: React.FC = () => {
 
     const node = NodeFactory.createMacroNode('new_macro');
     await editorInstanceRef.current.addNode(node);
+    captureState();
   };
 
   const saveToLocalStorage = (editor: NodeEditor<Schemes>) => {
@@ -297,31 +311,197 @@ export const DBTVisualBuilder: React.FC = () => {
     localStorage.removeItem('dbt-visual-builder-state');
   };
 
+  const captureState = () => {
+    if (!editorInstanceRef.current) return;
+
+    const nodes = editorInstanceRef.current.getNodes();
+    const connections = editorInstanceRef.current.getConnections();
+
+    const state = {
+      nodes: nodes.map(node => ({
+        id: node.id,
+        label: node.label,
+        data: JSON.parse(JSON.stringify((node as any).data)),
+        position: (node as any).position,
+      })),
+      connections: connections.map(conn => ({
+        source: conn.source,
+        target: conn.target,
+        sourceOutput: conn.sourceOutput,
+        targetInput: conn.targetInput,
+      })),
+    };
+
+    historyManagerRef.current.push(state);
+    updateHistoryButtons();
+  };
+
+  const updateHistoryButtons = () => {
+    setCanUndo(historyManagerRef.current.canUndo());
+    setCanRedo(historyManagerRef.current.canRedo());
+  };
+
+  const undo = () => {
+    const state = historyManagerRef.current.undo();
+    if (state) {
+      restoreState(state);
+      updateHistoryButtons();
+    }
+  };
+
+  const redo = () => {
+    const state = historyManagerRef.current.redo();
+    if (state) {
+      restoreState(state);
+      updateHistoryButtons();
+    }
+  };
+
+  const restoreState = (_state: any) => {
+    // For now, just log - full restoration would require rebuilding nodes
+    console.log('Restore state:', _state);
+    // TODO: Implement full state restoration
+  };
+
+  const copyNode = (nodeId: string) => {
+    if (!editorInstanceRef.current) return;
+
+    const node = editorInstanceRef.current.getNode(nodeId);
+    if (node) {
+      setCopiedNode({
+        data: JSON.parse(JSON.stringify((node as any).data)),
+        label: node.label,
+      });
+      console.log('Node copied');
+    }
+  };
+
+  const pasteNode = async () => {
+    if (!copiedNode || !editorInstanceRef.current) return;
+
+    const nodeType = copiedNode.data.type;
+    const newName = `${copiedNode.data.name}_copy`;
+
+    let newNode;
+    switch (nodeType) {
+      case 'source':
+        newNode = NodeFactory.createSourceNode(newName, copiedNode.data.schema || '', copiedNode.data.name || '');
+        break;
+      case 'model':
+        newNode = NodeFactory.createModelNode(newName, copiedNode.data.materialization);
+        break;
+      case 'snapshot':
+        newNode = NodeFactory.createSnapshotNode(newName);
+        break;
+      case 'seed':
+        newNode = NodeFactory.createSeedNode(newName);
+        break;
+      case 'test':
+        newNode = NodeFactory.createTestNode(newName);
+        break;
+      default:
+        newNode = NodeFactory.createTransformNode(newName);
+    }
+
+    if (newNode) {
+      await editorInstanceRef.current.addNode(newNode);
+      captureState();
+      console.log('Node pasted');
+    }
+  };
+
+  const duplicateNode = async (nodeId: string) => {
+    copyNode(nodeId);
+    await pasteNode();
+  };
+
+  const deleteNode = (nodeId: string) => {
+    if (!editorInstanceRef.current) return;
+    editorInstanceRef.current.removeNode(nodeId);
+    captureState();
+  };
+
   const setupKeyboardShortcuts = (editor: NodeEditor<Schemes>, _area: AreaPlugin<Schemes, AreaExtra>) => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Delete key - remove selected nodes
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        // Simple deletion - would need selection tracking for better UX
+      // Undo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        undo();
         e.preventDefault();
+        return;
+      }
+
+      // Redo
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        redo();
+        e.preventDefault();
+        return;
+      }
+
+      // Copy
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && contextMenu) {
+        copyNode(contextMenu.nodeId);
+        e.preventDefault();
+        return;
+      }
+
+      // Paste
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+        pasteNode();
+        e.preventDefault();
+        return;
+      }
+
+      // Duplicate
+      if ((e.ctrlKey || e.metaKey) && e.key === 'd' && contextMenu) {
+        duplicateNode(contextMenu.nodeId);
+        e.preventDefault();
+        return;
+      }
+
+      // Delete key - remove selected nodes
+      if ((e.key === 'Delete' || e.key === 'Backspace') && contextMenu) {
+        deleteNode(contextMenu.nodeId);
+        setContextMenu(null);
+        e.preventDefault();
+        return;
       }
 
       // Ctrl/Cmd + S - Save
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         saveToLocalStorage(editor);
         e.preventDefault();
+        return;
       }
 
       // Ctrl/Cmd + A - Select all
       if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
         // Select all nodes logic would go here
         e.preventDefault();
+        return;
+      }
+    };
+
+    const handleContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const nodeElement = target.closest('.node');
+
+      if (nodeElement) {
+        e.preventDefault();
+        const nodeId = (nodeElement as any).__node?.id;
+        if (nodeId) {
+          setContextMenu({ x: e.clientX, y: e.clientY, nodeId });
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
+    editorRef.current?.addEventListener('contextmenu', handleContextMenu as any);
 
     // Cleanup on unmount
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      editorRef.current?.removeEventListener('contextmenu', handleContextMenu as any);
+    };
   };
 
   const autoArrange = async () => {
@@ -386,10 +566,42 @@ export const DBTVisualBuilder: React.FC = () => {
 
   return (
     <div className="relative w-full h-screen bg-gray-900">
+      {/* Context Menu */}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          onDelete={() => deleteNode(contextMenu.nodeId)}
+          onDuplicate={() => duplicateNode(contextMenu.nodeId)}
+          onCopy={() => copyNode(contextMenu.nodeId)}
+        />
+      )}
+
       {/* Toolbar */}
       <div className="absolute top-0 left-0 right-0 z-10 bg-gray-800 border-b border-gray-700 p-3 shadow-lg">
         <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-xl font-bold text-white">DBT Visual Builder</h1>
+
+          {/* Undo/Redo */}
+          <div className="flex gap-2 border-l border-gray-600 pl-3">
+            <button
+              onClick={undo}
+              disabled={!canUndo}
+              className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Undo (Ctrl+Z)"
+            >
+              ↶ Undo
+            </button>
+            <button
+              onClick={redo}
+              disabled={!canRedo}
+              className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Redo (Ctrl+Y)"
+            >
+              ↷ Redo
+            </button>
+          </div>
 
           {/* Add Node Buttons */}
           <div className="flex gap-2 border-l border-gray-600 pl-3 flex-wrap">
@@ -500,11 +712,14 @@ export const DBTVisualBuilder: React.FC = () => {
         </div>
 
         {/* Keyboard Shortcuts Info */}
-        <div className="mt-2 text-xs text-gray-400 flex gap-4">
+        <div className="mt-2 text-xs text-gray-400 flex gap-4 flex-wrap">
           <span>⌨️ Shortcuts:</span>
-          <span>Del - Delete selected</span>
+          <span>Ctrl+Z/Y - Undo/Redo</span>
+          <span>Ctrl+C/V - Copy/Paste</span>
+          <span>Ctrl+D - Duplicate</span>
+          <span>Del - Delete</span>
           <span>Ctrl+S - Save</span>
-          <span>Esc - Deselect all</span>
+          <span>Right-click - Context menu</span>
         </div>
       </div>
 

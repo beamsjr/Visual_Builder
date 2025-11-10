@@ -113,3 +113,6 @@ export const SelectControlComponent: React.FC<{ data: SelectControl }> = ({ data
     </div>
   );
 };
+
+// Export ColumnControl from ColumnEditor
+export { ColumnControl, ColumnEditorComponent } from './ColumnEditor';

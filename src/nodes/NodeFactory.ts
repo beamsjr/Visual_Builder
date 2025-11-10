@@ -1,6 +1,6 @@
 import type { DBTNodeData, DBTMaterializationType } from '../types/dbt';
 import { SourceNode, ModelNode, TransformNode, SnapshotNode, SeedNode, TestNode, MacroNode } from '../types/editor';
-import { TextControl, TextAreaControl, SelectControl } from '../components/CustomControls';
+import { TextControl, TextAreaControl, SelectControl, ColumnControl } from '../components/CustomControls';
 
 export class NodeFactory {
   static createSourceNode(name: string, schema: string, table: string): SourceNode {
@@ -97,6 +97,14 @@ export class NodeFactory {
       new TextControl('', (value) => {
         data.description = value;
       }, 'Description', 'Description')
+    );
+
+    // Add column editor
+    node.addControl(
+      'columns',
+      new ColumnControl(data.columns || [], (columns) => {
+        data.columns = columns;
+      })
     );
 
     return node;

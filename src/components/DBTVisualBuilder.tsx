@@ -10,13 +10,16 @@ import {
   TextControlComponent,
   TextAreaControlComponent,
   SelectControlComponent,
+  ColumnEditorComponent,
   TextControl,
   TextAreaControl,
-  SelectControl
+  SelectControl,
+  ColumnControl
 } from './CustomControls';
 import { NodeFactory } from '../nodes/NodeFactory';
 import type { Schemes } from '../types/editor';
 import { DBTGenerator } from '../utils/dbtGenerator';
+import { DBTExporter } from '../utils/dbtExporter';
 import type { DBTNodeData } from '../types/dbt';
 
 type AreaExtra = ReactArea2D<Schemes>;
@@ -88,6 +91,9 @@ export const DBTVisualBuilder: React.FC = () => {
               }
               if (data.payload instanceof SelectControl) {
                 return SelectControlComponent as any;
+              }
+              if (data.payload instanceof ColumnControl) {
+                return ColumnEditorComponent as any;
               }
               return null;
             },
@@ -363,6 +369,21 @@ export const DBTVisualBuilder: React.FC = () => {
     });
   };
 
+  const exportAsZip = async () => {
+    if (!editorInstanceRef.current) return;
+
+    const nodes = editorInstanceRef.current.getNodes();
+    const nodeData: DBTNodeData[] = nodes.map(node => (node as any).data);
+
+    try {
+      await DBTExporter.exportAsZip(nodeData);
+      console.log('DBT project exported as zip successfully');
+    } catch (error) {
+      console.error('Failed to export DBT project:', error);
+      alert('Failed to export project. Check console for details.');
+    }
+  };
+
   return (
     <div className="relative w-full h-screen bg-gray-900">
       {/* Toolbar */}
@@ -464,9 +485,16 @@ export const DBTVisualBuilder: React.FC = () => {
             <button
               onClick={exportDBT}
               className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm font-medium transition-colors"
-              title="Export DBT Project"
+              title="Export as JSON (for debugging)"
             >
-              📦 Export DBT
+              📄 Export JSON
+            </button>
+            <button
+              onClick={exportAsZip}
+              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm font-medium transition-colors"
+              title="Download complete DBT project as ZIP"
+            >
+              📦 Download ZIP
             </button>
           </div>
         </div>

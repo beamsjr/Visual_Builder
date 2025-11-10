@@ -15,12 +15,14 @@ import {
   ColumnEditorComponent,
   MonacoControlComponent,
   TagControlComponent,
+  GroupControlComponent,
   TextControl,
   TextAreaControl,
   SelectControl,
   ColumnControl,
   MonacoControl,
-  TagControl
+  TagControl,
+  GroupControl
 } from './CustomControls';
 import { ContextMenu } from './ContextMenu';
 import { NodeFactory } from '../nodes/NodeFactory';
@@ -43,6 +45,7 @@ export const DBTVisualBuilder: React.FC = () => {
   const isRestoringRef = useRef(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('');
+  const [selectedGroup, setSelectedGroup] = useState<string>('');
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
   const [copiedNode, setCopiedNode] = useState<any>(null);
   const [canUndo, setCanUndo] = useState(false);
@@ -50,7 +53,7 @@ export const DBTVisualBuilder: React.FC = () => {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [showDependencies, setShowDependencies] = useState(true);
 
-  // Search and tag filtering functionality - highlight matching nodes
+  // Search, tag, and group filtering functionality - highlight matching nodes
   useEffect(() => {
     if (!editorInstanceRef.current || !areaInstanceRef.current) return;
 
@@ -73,8 +76,11 @@ export const DBTVisualBuilder: React.FC = () => {
       // Tag filtering
       const matchesTag = !selectedTag || (data.tags && data.tags.includes(selectedTag));
 
-      const matches = matchesSearch && matchesTag;
-      const hasFilter = searchTerm || selectedTag;
+      // Group filtering
+      const matchesGroup = !selectedGroup || (data.group === selectedGroup);
+
+      const matches = matchesSearch && matchesTag && matchesGroup;
+      const hasFilter = searchTerm || selectedTag || selectedGroup;
 
       if (matches && hasFilter) {
         nodeView.element.style.opacity = '1';
@@ -90,7 +96,40 @@ export const DBTVisualBuilder: React.FC = () => {
         nodeView.element.style.boxShadow = '';
       }
     });
-  }, [searchTerm, selectedTag]);
+  }, [searchTerm, selectedTag, selectedGroup]);
+
+  // Visual grouping - apply background colors based on group
+  useEffect(() => {
+    if (!editorInstanceRef.current || !areaInstanceRef.current) return;
+
+    const nodes = editorInstanceRef.current.getNodes();
+    const area = areaInstanceRef.current;
+
+    // Function to generate consistent color from string
+    const stringToColor = (str: string): string => {
+      if (!str) return '';
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const hue = hash % 360;
+      return `hsla(${hue}, 45%, 25%, 0.3)`;
+    };
+
+    nodes.forEach(node => {
+      const nodeView = (area as any).nodeViews.get(node.id);
+      if (!nodeView?.element) return;
+
+      const data = (node as any).data;
+      if (data.group && data.group.trim()) {
+        const bgColor = stringToColor(data.group);
+        nodeView.element.style.backgroundColor = bgColor;
+      } else {
+        // Reset to default if no group
+        nodeView.element.style.backgroundColor = '';
+      }
+    });
+  }, [editorInstanceRef.current?.getNodes().length]); // Re-run when nodes change
 
   // Dependency visualization - highlight upstream/downstream nodes
   useEffect(() => {
@@ -206,6 +245,9 @@ export const DBTVisualBuilder: React.FC = () => {
               }
               if (data.payload instanceof TagControl) {
                 return TagControlComponent as any;
+              }
+              if (data.payload instanceof GroupControl) {
+                return GroupControlComponent as any;
               }
               return null;
             },
@@ -825,6 +867,22 @@ export const DBTVisualBuilder: React.FC = () => {
     return Array.from(tagsSet).sort();
   };
 
+  const getAllGroups = (): string[] => {
+    if (!editorInstanceRef.current) return [];
+
+    const nodes = editorInstanceRef.current.getNodes();
+    const groupsSet = new Set<string>();
+
+    nodes.forEach(node => {
+      const data = (node as any).data;
+      if (data.group && data.group.trim()) {
+        groupsSet.add(data.group);
+      }
+    });
+
+    return Array.from(groupsSet).sort();
+  };
+
   const handleImportFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || !editorInstanceRef.current || !areaInstanceRef.current) return;
 
@@ -1039,10 +1097,22 @@ export const DBTVisualBuilder: React.FC = () => {
               value={selectedTag}
               onChange={(e) => setSelectedTag(e.target.value)}
               className="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
+              title="Filter by Tag"
             >
               <option value="">All Tags</option>
               {getAllTags().map(tag => (
                 <option key={tag} value={tag}>{tag}</option>
+              ))}
+            </select>
+            <select
+              value={selectedGroup}
+              onChange={(e) => setSelectedGroup(e.target.value)}
+              className="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
+              title="Filter by Group"
+            >
+              <option value="">All Groups</option>
+              {getAllGroups().map(group => (
+                <option key={group} value={group}>{group}</option>
               ))}
             </select>
           </div>

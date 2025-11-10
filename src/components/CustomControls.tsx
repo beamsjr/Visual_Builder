@@ -278,5 +278,48 @@ export const TagControlComponent: React.FC<{ data: TagControl }> = ({ data }) =>
   );
 };
 
+// Group Control
+export class GroupControl extends ClassicPreset.Control {
+  value: string;
+  onChange: (value: string) => void;
+  label: string;
+
+  constructor(
+    value: string = '',
+    onChange: (value: string) => void,
+    label: string = 'Group'
+  ) {
+    super();
+    this.value = value;
+    this.onChange = onChange;
+    this.label = label;
+  }
+}
+
+export const GroupControlComponent: React.FC<{ data: GroupControl }> = ({ data }) => {
+  const [localValue, setLocalValue] = useState(data.value);
+
+  const handleChange = (value: string) => {
+    setLocalValue(value);
+    data.onChange(value);
+  };
+
+  return (
+    <div className="control-wrapper">
+      {data.label && <label className="control-label text-xs text-gray-400">{data.label}</label>}
+      <input
+        type="text"
+        value={localValue}
+        onChange={(e) => handleChange(e.target.value)}
+        placeholder="e.g., staging, mart, raw..."
+        className="control-input text-sm"
+      />
+      <div className="text-xs text-gray-500 mt-1">
+        Group nodes for better organization
+      </div>
+    </div>
+  );
+};
+
 // Export ColumnControl from ColumnEditor
 export { ColumnControl, ColumnEditorComponent } from './ColumnEditor';

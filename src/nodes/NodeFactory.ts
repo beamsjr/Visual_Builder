@@ -1,6 +1,6 @@
 import type { DBTNodeData, DBTMaterializationType } from '../types/dbt';
 import { SourceNode, ModelNode, TransformNode, SnapshotNode, SeedNode, TestNode, MacroNode } from '../types/editor';
-import { TextControl, SelectControl, ColumnControl, MonacoControl, TagControl } from '../components/CustomControls';
+import { TextControl, SelectControl, ColumnControl, MonacoControl, TagControl, GroupControl } from '../components/CustomControls';
 
 export class NodeFactory {
   static createSourceNode(name: string, schema: string, table: string): SourceNode {
@@ -35,6 +35,14 @@ export class NodeFactory {
       new TextControl('', (value) => {
         data.description = value;
       }, 'Description', 'Description')
+    );
+
+    // Add group control
+    node.addControl(
+      'group',
+      new GroupControl(data.group || '', (group) => {
+        data.group = group;
+      })
     );
 
     return node;
@@ -107,6 +115,14 @@ export class NodeFactory {
       })
     );
 
+    // Add group control
+    node.addControl(
+      'group',
+      new GroupControl(data.group || '', (group) => {
+        data.group = group;
+      })
+    );
+
     // Add column editor
     node.addControl(
       'columns',
@@ -164,6 +180,14 @@ export class NodeFactory {
       'tags',
       new TagControl(data.tags || [], (tags) => {
         data.tags = tags;
+      })
+    );
+
+    // Add group control
+    node.addControl(
+      'group',
+      new GroupControl(data.group || '', (group) => {
+        data.group = group;
       })
     );
 

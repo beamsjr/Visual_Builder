@@ -13,6 +13,7 @@ export interface DBTNodeData {
   description?: string;
   columns?: DBTColumn[];
   tags?: string[];
+  group?: string;
 }
 
 export interface DBTColumn {

@@ -46,6 +46,7 @@ export const DBTVisualBuilder: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('');
   const [selectedGroup, setSelectedGroup] = useState<string>('');
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
   const [copiedNode, setCopiedNode] = useState<any>(null);
   const [canUndo, setCanUndo] = useState(false);
@@ -97,6 +98,18 @@ export const DBTVisualBuilder: React.FC = () => {
       }
     });
   }, [searchTerm, selectedTag, selectedGroup]);
+
+  // Close export menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (showExportMenu && !(e.target as HTMLElement).closest('.relative')) {
+        setShowExportMenu(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showExportMenu]);
 
   // Visual grouping - apply background colors based on group
   useEffect(() => {
@@ -851,6 +864,96 @@ export const DBTVisualBuilder: React.FC = () => {
     }
   };
 
+  const downloadFile = (content: string, filename: string, contentType: string = 'text/plain') => {
+    const blob = new Blob([content], { type: contentType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportNodesByType = (type: string) => {
+    if (!editorInstanceRef.current) return;
+
+    const nodes = editorInstanceRef.current.getNodes();
+    const nodeData: DBTNodeData[] = nodes
+      .map(node => (node as any).data)
+      .filter((data: DBTNodeData) => data.type === type);
+
+    if (nodeData.length === 0) {
+      alert(`No ${type} nodes found to export.`);
+      return;
+    }
+
+    const files = DBTGenerator.generateProjectStructure(nodeData);
+    const exportData = {
+      timestamp: new Date().toISOString(),
+      type,
+      nodeCount: nodeData.length,
+      files,
+    };
+
+    downloadFile(
+      JSON.stringify(exportData, null, 2),
+      `dbt-${type}-export-${Date.now()}.json`,
+      'application/json'
+    );
+
+    console.log(`Exported ${nodeData.length} ${type} nodes`);
+  };
+
+  const exportAllSQL = () => {
+    if (!editorInstanceRef.current) return;
+
+    const nodes = editorInstanceRef.current.getNodes();
+    const nodeData: DBTNodeData[] = nodes.map(node => (node as any).data);
+
+    const files = DBTGenerator.generateProjectStructure(nodeData);
+
+    // Download each SQL file individually
+    let count = 0;
+    Object.entries(files).forEach(([path, content]) => {
+      if (path.endsWith('.sql')) {
+        const filename = path.split('/').pop() || 'model.sql';
+        downloadFile(content, filename, 'text/sql');
+        count++;
+      }
+    });
+
+    if (count === 0) {
+      alert('No SQL files found to export.');
+    } else {
+      console.log(`Downloaded ${count} SQL files`);
+    }
+  };
+
+  const exportAllYAML = () => {
+    if (!editorInstanceRef.current) return;
+
+    const nodes = editorInstanceRef.current.getNodes();
+    const nodeData: DBTNodeData[] = nodes.map(node => (node as any).data);
+
+    const files = DBTGenerator.generateProjectStructure(nodeData);
+
+    // Download each YAML file individually
+    let count = 0;
+    Object.entries(files).forEach(([path, content]) => {
+      if (path.endsWith('.yml')) {
+        const filename = path.split('/').pop() || 'config.yml';
+        downloadFile(content, filename, 'text/yaml');
+        count++;
+      }
+    });
+
+    if (count === 0) {
+      alert('No YAML files found to export.');
+    } else {
+      console.log(`Downloaded ${count} YAML files`);
+    }
+  };
+
   const getAllTags = (): string[] => {
     if (!editorInstanceRef.current) return [];
 
@@ -1140,20 +1243,55 @@ export const DBTVisualBuilder: React.FC = () => {
             >
               🗑️ Clear
             </button>
-            <button
-              onClick={exportDBT}
-              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm font-medium transition-colors"
-              title="Export as JSON (for debugging)"
-            >
-              📄 Export JSON
-            </button>
-            <button
-              onClick={exportAsZip}
-              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm font-medium transition-colors"
-              title="Download complete DBT project as ZIP"
-            >
-              📦 Download ZIP
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm font-medium transition-colors flex items-center gap-1"
+                title="Export Options"
+              >
+                📦 Export ▾
+              </button>
+              {showExportMenu && (
+                <div className="absolute right-0 mt-1 w-56 bg-gray-800 border border-gray-700 rounded shadow-lg z-50">
+                  <button
+                    onClick={() => { exportAsZip(); setShowExportMenu(false); }}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-700 text-white text-sm border-b border-gray-700"
+                  >
+                    📦 Complete ZIP Project
+                  </button>
+                  <button
+                    onClick={() => { exportDBT(); setShowExportMenu(false); }}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-700 text-white text-sm border-b border-gray-700"
+                  >
+                    📄 JSON Export (Debug)
+                  </button>
+                  <button
+                    onClick={() => { exportAllSQL(); setShowExportMenu(false); }}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-700 text-white text-sm border-b border-gray-700"
+                  >
+                    📝 All SQL Files
+                  </button>
+                  <button
+                    onClick={() => { exportAllYAML(); setShowExportMenu(false); }}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-700 text-white text-sm border-b border-gray-700"
+                  >
+                    📋 All YAML Files
+                  </button>
+                  <button
+                    onClick={() => { exportNodesByType('model'); setShowExportMenu(false); }}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-700 text-white text-sm border-b border-gray-700"
+                  >
+                    🔷 Models Only
+                  </button>
+                  <button
+                    onClick={() => { exportNodesByType('source'); setShowExportMenu(false); }}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-700 text-white text-sm"
+                  >
+                    🔶 Sources Only
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

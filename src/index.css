@@ -170,3 +170,47 @@ body {
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
   transition: all 0.2s ease;
 }
+
+/* Dependency visualization */
+.rete .node-selected {
+  box-shadow: 0 0 30px rgba(100, 108, 255, 0.8), 0 0 60px rgba(100, 108, 255, 0.4) !important;
+  border-width: 3px !important;
+  border-color: #646cff !important;
+  z-index: 1000 !important;
+  animation: pulse-selected 2s ease-in-out infinite;
+}
+
+.rete .node-upstream {
+  box-shadow: 0 0 20px rgba(159, 122, 234, 0.6) !important;
+  border-color: #9f7aea !important;
+  border-width: 2px !important;
+  opacity: 1 !important;
+}
+
+.rete .node-downstream {
+  box-shadow: 0 0 20px rgba(72, 187, 120, 0.6) !important;
+  border-color: #48bb78 !important;
+  border-width: 2px !important;
+  opacity: 1 !important;
+}
+
+.rete .connection-highlighted-upstream .main-path {
+  stroke: #9f7aea !important;
+  stroke-width: 3px !important;
+  filter: drop-shadow(0 0 8px rgba(159, 122, 234, 0.8));
+}
+
+.rete .connection-highlighted-downstream .main-path {
+  stroke: #48bb78 !important;
+  stroke-width: 3px !important;
+  filter: drop-shadow(0 0 8px rgba(72, 187, 120, 0.8));
+}
+
+@keyframes pulse-selected {
+  0%, 100% {
+    box-shadow: 0 0 30px rgba(100, 108, 255, 0.8), 0 0 60px rgba(100, 108, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(100, 108, 255, 1), 0 0 80px rgba(100, 108, 255, 0.6);
+  }
+}

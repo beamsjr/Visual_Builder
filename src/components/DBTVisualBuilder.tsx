@@ -40,6 +40,8 @@ export const DBTVisualBuilder: React.FC = () => {
   const [copiedNode, setCopiedNode] = useState<any>(null);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [showDependencies, setShowDependencies] = useState(true);
 
   // Search functionality - highlight matching nodes
   useEffect(() => {
@@ -74,6 +76,85 @@ export const DBTVisualBuilder: React.FC = () => {
       }
     });
   }, [searchTerm]);
+
+  // Dependency visualization - highlight upstream/downstream nodes
+  useEffect(() => {
+    if (!editorInstanceRef.current || !areaInstanceRef.current || !showDependencies) return;
+
+    const editor = editorInstanceRef.current;
+    const area = areaInstanceRef.current;
+    const nodes = editor.getNodes();
+    const connections = editor.getConnections();
+
+    // Clear all highlights first
+    nodes.forEach(node => {
+      const nodeView = (area as any).nodeViews.get(node.id);
+      if (!nodeView?.element) return;
+
+      nodeView.element.classList.remove('node-selected', 'node-upstream', 'node-downstream');
+    });
+
+    // Clear connection highlights
+    connections.forEach(conn => {
+      const connView = (area as any).connectionViews.get(conn.id);
+      if (!connView?.element) return;
+
+      connView.element.classList.remove('connection-highlighted-upstream', 'connection-highlighted-downstream');
+    });
+
+    if (!selectedNodeId) return;
+
+    // Find upstream and downstream nodes
+    const upstream = new Set<string>();
+    const downstream = new Set<string>();
+
+    const findUpstream = (nodeId: string) => {
+      connections.forEach(conn => {
+        if (conn.target === nodeId && !upstream.has(conn.source)) {
+          upstream.add(conn.source);
+          findUpstream(conn.source);
+        }
+      });
+    };
+
+    const findDownstream = (nodeId: string) => {
+      connections.forEach(conn => {
+        if (conn.source === nodeId && !downstream.has(conn.target)) {
+          downstream.add(conn.target);
+          findDownstream(conn.target);
+        }
+      });
+    };
+
+    findUpstream(selectedNodeId);
+    findDownstream(selectedNodeId);
+
+    // Apply visual highlights
+    nodes.forEach(node => {
+      const nodeView = (area as any).nodeViews.get(node.id);
+      if (!nodeView?.element) return;
+
+      if (node.id === selectedNodeId) {
+        nodeView.element.classList.add('node-selected');
+      } else if (upstream.has(node.id)) {
+        nodeView.element.classList.add('node-upstream');
+      } else if (downstream.has(node.id)) {
+        nodeView.element.classList.add('node-downstream');
+      }
+    });
+
+    // Highlight connections
+    connections.forEach(conn => {
+      const connView = (area as any).connectionViews.get(conn.id);
+      if (!connView?.element) return;
+
+      if (conn.target === selectedNodeId || (upstream.has(conn.target) && upstream.has(conn.source))) {
+        connView.element.classList.add('connection-highlighted-upstream');
+      } else if (conn.source === selectedNodeId || (downstream.has(conn.source) && downstream.has(conn.target))) {
+        connView.element.classList.add('connection-highlighted-downstream');
+      }
+    });
+  }, [selectedNodeId, showDependencies]);
 
   useEffect(() => {
     if (!editorRef.current) return;
@@ -149,6 +230,9 @@ export const DBTVisualBuilder: React.FC = () => {
 
       // Setup keyboard shortcuts
       setupKeyboardShortcuts(editor, area);
+
+      // Setup node click for dependency visualization
+      setupNodeClickHandler(area);
 
       // Save state on changes
       editor.addPipe((context) => {
@@ -615,6 +699,31 @@ export const DBTVisualBuilder: React.FC = () => {
     };
   };
 
+  const setupNodeClickHandler = (_area: AreaPlugin<Schemes, AreaExtra>) => {
+    const handleNodeClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const nodeElement = target.closest('.node');
+
+      if (nodeElement) {
+        const nodeId = (nodeElement as any).__node?.id;
+        if (nodeId) {
+          // Toggle selection - click again to deselect
+          setSelectedNodeId(prev => prev === nodeId ? null : nodeId);
+        }
+      } else {
+        // Click on empty canvas to deselect
+        setSelectedNodeId(null);
+      }
+    };
+
+    editorRef.current?.addEventListener('click', handleNodeClick as any);
+
+    // Cleanup on unmount
+    return () => {
+      editorRef.current?.removeEventListener('click', handleNodeClick as any);
+    };
+  };
+
   const autoArrange = async () => {
     if (!arrangeInstanceRef.current || !areaInstanceRef.current || !editorInstanceRef.current) return;
 
@@ -776,6 +885,17 @@ export const DBTVisualBuilder: React.FC = () => {
             >
               🔄 Arrange
             </button>
+            <button
+              onClick={() => setShowDependencies(!showDependencies)}
+              className={`px-3 py-1.5 text-white rounded text-sm font-medium transition-colors ${
+                showDependencies
+                  ? 'bg-purple-600 hover:bg-purple-700'
+                  : 'bg-gray-600 hover:bg-gray-700'
+              }`}
+              title="Toggle dependency visualization (click nodes to see lineage)"
+            >
+              {showDependencies ? '🔗 Deps: ON' : '🔗 Deps: OFF'}
+            </button>
           </div>
 
           {/* Search */}
@@ -832,6 +952,16 @@ export const DBTVisualBuilder: React.FC = () => {
           <span>Ctrl+S - Save</span>
           <span>Right-click - Context menu</span>
         </div>
+
+        {/* Dependency Visualization Legend */}
+        {showDependencies && (
+          <div className="mt-1 text-xs flex gap-4 flex-wrap items-center">
+            <span className="text-gray-400">🔗 Lineage:</span>
+            <span className="text-blue-400">● Selected node (click to select)</span>
+            <span className="text-purple-400">● Upstream dependencies</span>
+            <span className="text-green-400">● Downstream consumers</span>
+          </div>
+        )}
       </div>
 
       {/* Editor Canvas */}

@@ -31,6 +31,8 @@ import { DBTGenerator } from '../utils/dbtGenerator';
 import { DBTExporter } from '../utils/dbtExporter';
 import { DBTImporter } from '../utils/dbtImporter';
 import { HistoryManager } from '../utils/historyManager';
+import { DBTValidator } from '../utils/validator';
+import type { ValidationIssue } from '../utils/validator';
 import type { DBTNodeData } from '../types/dbt';
 
 type AreaExtra = ReactArea2D<Schemes> | MinimapExtra;
@@ -47,6 +49,8 @@ export const DBTVisualBuilder: React.FC = () => {
   const [selectedTag, setSelectedTag] = useState<string>('');
   const [selectedGroup, setSelectedGroup] = useState<string>('');
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
+  const [showValidation, setShowValidation] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
   const [copiedNode, setCopiedNode] = useState<any>(null);
   const [canUndo, setCanUndo] = useState(false);
@@ -986,6 +990,20 @@ export const DBTVisualBuilder: React.FC = () => {
     return Array.from(groupsSet).sort();
   };
 
+  const runValidation = () => {
+    if (!editorInstanceRef.current) return;
+
+    const nodes = editorInstanceRef.current.getNodes();
+    const connections = editorInstanceRef.current.getConnections();
+
+    const issues = DBTValidator.validateProject(nodes, connections);
+    setValidationIssues(issues);
+    setShowValidation(true);
+
+    const counts = DBTValidator.getIssueCounts(issues);
+    console.log(`Validation complete: ${counts.error} errors, ${counts.warning} warnings, ${counts.info} info`);
+  };
+
   const handleImportFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || !editorInstanceRef.current || !areaInstanceRef.current) return;
 
@@ -1185,6 +1203,17 @@ export const DBTVisualBuilder: React.FC = () => {
             >
               {showDependencies ? '🔗 Deps: ON' : '🔗 Deps: OFF'}
             </button>
+            <button
+              onClick={runValidation}
+              className={`px-3 py-1.5 text-white rounded text-sm font-medium transition-colors ${
+                validationIssues.length > 0
+                  ? 'bg-yellow-600 hover:bg-yellow-700'
+                  : 'bg-gray-600 hover:bg-gray-700'
+              }`}
+              title="Run validation checks"
+            >
+              ✓ Validate {validationIssues.length > 0 && `(${validationIssues.length})`}
+            </button>
           </div>
 
           {/* Search */}
@@ -1318,6 +1347,66 @@ export const DBTVisualBuilder: React.FC = () => {
       </div>
 
       {/* Editor Canvas */}
+      {/* Validation Panel */}
+      {showValidation && (
+        <div className="absolute top-28 right-4 w-96 max-h-[calc(100vh-8rem)] bg-gray-800 border border-gray-700 rounded shadow-lg z-40 overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between p-3 bg-gray-700 border-b border-gray-600">
+            <h3 className="text-white font-semibold">Validation Results</h3>
+            <button
+              onClick={() => setShowValidation(false)}
+              className="text-gray-400 hover:text-white"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3">
+            {validationIssues.length === 0 ? (
+              <div className="text-green-400 text-center py-8">
+                ✓ No issues found! Your project looks good.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {validationIssues.map((issue, index) => (
+                  <div
+                    key={index}
+                    className={`p-2 rounded text-sm ${
+                      issue.severity === 'error'
+                        ? 'bg-red-900/30 border border-red-700/50'
+                        : issue.severity === 'warning'
+                        ? 'bg-yellow-900/30 border border-yellow-700/50'
+                        : 'bg-blue-900/30 border border-blue-700/50'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className="text-lg">
+                        {issue.severity === 'error'
+                          ? '❌'
+                          : issue.severity === 'warning'
+                          ? '⚠️'
+                          : 'ℹ️'}
+                      </span>
+                      <div className="flex-1">
+                        <div className="font-semibold text-white">{issue.nodeName}</div>
+                        <div className="text-gray-300 text-xs mt-1">{issue.message}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="p-3 bg-gray-700 border-t border-gray-600 text-xs text-gray-400">
+            {validationIssues.length > 0 && (
+              <div className="flex gap-4">
+                <span>❌ {DBTValidator.getIssueCounts(validationIssues).error} errors</span>
+                <span>⚠️ {DBTValidator.getIssueCounts(validationIssues).warning} warnings</span>
+                <span>ℹ️ {DBTValidator.getIssueCounts(validationIssues).info} info</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div ref={editorRef} className="rete w-full h-full pt-28" />
     </div>
   );

@@ -6,6 +6,8 @@ import { ConnectionPlugin, Presets as ConnectionPresets } from 'rete-connection-
 import { ReactPlugin, Presets } from 'rete-react-plugin';
 import type { ReactArea2D } from 'rete-react-plugin';
 import { AutoArrangePlugin, Presets as ArrangePresets } from 'rete-auto-arrange-plugin';
+import { MinimapPlugin } from 'rete-minimap-plugin';
+import type { MinimapExtra } from 'rete-minimap-plugin';
 import {
   TextControlComponent,
   TextAreaControlComponent,
@@ -26,7 +28,7 @@ import { DBTExporter } from '../utils/dbtExporter';
 import { HistoryManager } from '../utils/historyManager';
 import type { DBTNodeData } from '../types/dbt';
 
-type AreaExtra = ReactArea2D<Schemes>;
+type AreaExtra = ReactArea2D<Schemes> | MinimapExtra;
 
 export const DBTVisualBuilder: React.FC = () => {
   const editorRef = useRef<HTMLDivElement>(null);
@@ -195,11 +197,18 @@ export const DBTVisualBuilder: React.FC = () => {
         })
       );
 
+      // Add minimap render preset
+      render.addPreset(Presets.minimap.setup({ size: 200 }));
+
       connection.addPreset(ConnectionPresets.classic.setup());
 
       editor.use(area);
       area.use(connection);
       area.use(render);
+
+      // Minimap plugin - factory function pattern
+      const minimap = new MinimapPlugin<Schemes>();
+      area.use(minimap);
 
       // Auto-arrange plugin
       const arrange = new AutoArrangePlugin<Schemes>();

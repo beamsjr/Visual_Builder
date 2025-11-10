@@ -33,8 +33,10 @@ import { DBTImporter } from '../utils/dbtImporter';
 import { HistoryManager } from '../utils/historyManager';
 import { DBTValidator } from '../utils/validator';
 import { NodeTemplateManager } from '../utils/nodeTemplates';
+import { ProjectStatsCalculator } from '../utils/projectStats';
 import type { ValidationIssue } from '../utils/validator';
 import type { NodeTemplate } from '../utils/nodeTemplates';
+import type { ProjectStatistics } from '../utils/projectStats';
 import type { DBTNodeData } from '../types/dbt';
 
 type AreaExtra = ReactArea2D<Schemes> | MinimapExtra;
@@ -56,6 +58,8 @@ export const DBTVisualBuilder: React.FC = () => {
   const [showHelp, setShowHelp] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [quickAddSearch, setQuickAddSearch] = useState('');
+  const [showStats, setShowStats] = useState(false);
+  const [projectStats, setProjectStats] = useState<ProjectStatistics | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
   const [copiedNode, setCopiedNode] = useState<any>(null);
   const [canUndo, setCanUndo] = useState(false);
@@ -732,6 +736,7 @@ export const DBTVisualBuilder: React.FC = () => {
         setShowValidation(false);
         setShowExportMenu(false);
         setShowQuickAdd(false);
+        setShowStats(false);
         setContextMenu(null);
         e.preventDefault();
         return;
@@ -1039,6 +1044,21 @@ export const DBTVisualBuilder: React.FC = () => {
     console.log(`Validation complete: ${counts.error} errors, ${counts.warning} warnings, ${counts.info} info`);
   };
 
+  const calculateProjectStats = () => {
+    if (!editorInstanceRef.current) return;
+
+    const nodes = editorInstanceRef.current.getNodes();
+    const connections = editorInstanceRef.current.getConnections();
+
+    const stats = ProjectStatsCalculator.calculateStats(nodes, connections);
+    setProjectStats(stats);
+    setShowStats(true);
+
+    const healthScore = ProjectStatsCalculator.getHealthScore(stats);
+    const healthGrade = ProjectStatsCalculator.getHealthGrade(healthScore);
+    console.log(`Project Statistics: ${stats.totalNodes} nodes, Health: ${healthScore}% (${healthGrade})`);
+  };
+
   const createNodeFromTemplate = async (template: NodeTemplate) => {
     if (!editorInstanceRef.current) return;
 
@@ -1301,6 +1321,13 @@ export const DBTVisualBuilder: React.FC = () => {
             >
               ✓ Validate {validationIssues.length > 0 && `(${validationIssues.length})`}
             </button>
+            <button
+              onClick={calculateProjectStats}
+              className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm font-medium transition-colors"
+              title="View project statistics"
+            >
+              📊 Stats
+            </button>
           </div>
 
           {/* Search */}
@@ -1487,6 +1514,184 @@ export const DBTVisualBuilder: React.FC = () => {
           </div>
           <div className="p-3 bg-gray-700 border-t border-gray-600 text-center text-xs text-gray-400">
             Press <kbd className="px-2 py-1 bg-gray-600 border border-gray-500 rounded">Space</kbd> or <kbd className="px-2 py-1 bg-gray-600 border border-gray-500 rounded">N</kbd> to toggle • <kbd className="px-2 py-1 bg-gray-600 border border-gray-500 rounded">Esc</kbd> to close
+          </div>
+        </div>
+      )}
+
+      {/* Project Statistics Dashboard */}
+      {showStats && projectStats && (
+        <div className="absolute top-28 left-4 w-[450px] max-h-[calc(100vh-8rem)] bg-gray-800 border border-gray-700 rounded shadow-lg z-40 overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between p-3 bg-gray-700 border-b border-gray-600">
+            <h3 className="text-white font-semibold">📊 Project Statistics</h3>
+            <button
+              onClick={() => setShowStats(false)}
+              className="text-gray-400 hover:text-white"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* Health Score */}
+            <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 p-4 rounded border border-blue-700/50">
+              <div className="text-sm text-gray-400 mb-2">Project Health</div>
+              <div className="flex items-baseline gap-3">
+                <div className="text-4xl font-bold text-white">
+                  {ProjectStatsCalculator.getHealthScore(projectStats)}%
+                </div>
+                <div className="text-2xl text-gray-300">
+                  Grade: {ProjectStatsCalculator.getHealthGrade(ProjectStatsCalculator.getHealthScore(projectStats))}
+                </div>
+              </div>
+              <div className="mt-2 text-xs text-gray-400">
+                Based on documentation, SQL, columns, and tags coverage
+              </div>
+            </div>
+
+            {/* Overview */}
+            <div>
+              <h4 className="text-white font-semibold mb-2 text-sm">Overview</h4>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-gray-700/50 p-3 rounded">
+                  <div className="text-2xl font-bold text-white">{projectStats.totalNodes}</div>
+                  <div className="text-xs text-gray-400">Total Nodes</div>
+                </div>
+                <div className="bg-gray-700/50 p-3 rounded">
+                  <div className="text-2xl font-bold text-white">{projectStats.totalConnections}</div>
+                  <div className="text-xs text-gray-400">Connections</div>
+                </div>
+                <div className="bg-gray-700/50 p-3 rounded">
+                  <div className="text-2xl font-bold text-white">{projectStats.totalTags}</div>
+                  <div className="text-xs text-gray-400">Unique Tags</div>
+                </div>
+                <div className="bg-gray-700/50 p-3 rounded">
+                  <div className="text-2xl font-bold text-white">{projectStats.totalGroups}</div>
+                  <div className="text-xs text-gray-400">Groups</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Nodes by Type */}
+            <div>
+              <h4 className="text-white font-semibold mb-2 text-sm">Nodes by Type</h4>
+              <div className="space-y-1">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-300">📦 Sources</span>
+                  <span className="text-white font-semibold">{projectStats.nodesByType.source}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-300">🔷 Models</span>
+                  <span className="text-white font-semibold">{projectStats.nodesByType.model}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-300">📸 Snapshots</span>
+                  <span className="text-white font-semibold">{projectStats.nodesByType.snapshot}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-300">📋 Seeds</span>
+                  <span className="text-white font-semibold">{projectStats.nodesByType.seed}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-300">✅ Tests</span>
+                  <span className="text-white font-semibold">{projectStats.nodesByType.test}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Materialization */}
+            <div>
+              <h4 className="text-white font-semibold mb-2 text-sm">Materialization</h4>
+              <div className="space-y-1">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-300">Table</span>
+                  <span className="text-white font-semibold">{projectStats.nodesByMaterialization.table}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-300">View</span>
+                  <span className="text-white font-semibold">{projectStats.nodesByMaterialization.view}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-300">Incremental</span>
+                  <span className="text-white font-semibold">{projectStats.nodesByMaterialization.incremental}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-300">Ephemeral</span>
+                  <span className="text-white font-semibold">{projectStats.nodesByMaterialization.ephemeral}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Coverage */}
+            <div>
+              <h4 className="text-white font-semibold mb-2 text-sm">Documentation Coverage</h4>
+              <div className="space-y-2">
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-300">Descriptions</span>
+                    <span className="text-white font-semibold">{Math.round(projectStats.descriptionCoverage)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all"
+                      style={{ width: `${projectStats.descriptionCoverage}%` }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-300">SQL Queries</span>
+                    <span className="text-white font-semibold">{Math.round(projectStats.sqlCoverage)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-2">
+                    <div
+                      className="bg-green-600 h-2 rounded-full transition-all"
+                      style={{ width: `${projectStats.sqlCoverage}%` }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-300">Columns Defined</span>
+                    <span className="text-white font-semibold">{Math.round(projectStats.columnCoverage)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-2">
+                    <div
+                      className="bg-purple-600 h-2 rounded-full transition-all"
+                      style={{ width: `${projectStats.columnCoverage}%` }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-300">Tagged</span>
+                    <span className="text-white font-semibold">{Math.round(projectStats.tagCoverage)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-2">
+                    <div
+                      className="bg-yellow-600 h-2 rounded-full transition-all"
+                      style={{ width: `${projectStats.tagCoverage}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Insights */}
+            <div>
+              <h4 className="text-white font-semibold mb-2 text-sm">Insights</h4>
+              <div className="space-y-1 text-sm">
+                <div className="text-gray-300">
+                  📊 Avg connections: {projectStats.averageConnectionsPerNode.toFixed(1)} per node
+                </div>
+                <div className="text-gray-300">
+                  📝 Total columns defined: {projectStats.totalColumns}
+                </div>
+                {projectStats.isolatedNodes > 0 && (
+                  <div className="text-yellow-400">
+                    ⚠️ {projectStats.isolatedNodes} isolated node{projectStats.isolatedNodes > 1 ? 's' : ''}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

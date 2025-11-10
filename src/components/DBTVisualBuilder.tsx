@@ -11,10 +11,12 @@ import {
   TextAreaControlComponent,
   SelectControlComponent,
   ColumnEditorComponent,
+  MonacoControlComponent,
   TextControl,
   TextAreaControl,
   SelectControl,
-  ColumnControl
+  ColumnControl,
+  MonacoControl
 } from './CustomControls';
 import { ContextMenu } from './ContextMenu';
 import { NodeFactory } from '../nodes/NodeFactory';
@@ -102,6 +104,9 @@ export const DBTVisualBuilder: React.FC = () => {
               }
               if (data.payload instanceof ColumnControl) {
                 return ColumnEditorComponent as any;
+              }
+              if (data.payload instanceof MonacoControl) {
+                return MonacoControlComponent as any;
               }
               return null;
             },

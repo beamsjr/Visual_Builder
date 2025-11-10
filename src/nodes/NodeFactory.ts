@@ -1,6 +1,6 @@
 import type { DBTNodeData, DBTMaterializationType } from '../types/dbt';
 import { SourceNode, ModelNode, TransformNode, SnapshotNode, SeedNode, TestNode, MacroNode } from '../types/editor';
-import { TextControl, TextAreaControl, SelectControl, ColumnControl } from '../components/CustomControls';
+import { TextControl, SelectControl, ColumnControl, MonacoControl } from '../components/CustomControls';
 
 export class NodeFactory {
   static createSourceNode(name: string, schema: string, table: string): SourceNode {
@@ -81,14 +81,14 @@ export class NodeFactory {
 
     node.addControl(
       'sql',
-      new TextAreaControl(
+      new MonacoControl(
         data.sql || '',
         (value) => {
           data.sql = value;
         },
-        'Enter SQL...',
+        'sql',
         'SQL Query',
-        8
+        250
       )
     );
 
@@ -133,14 +133,14 @@ export class NodeFactory {
 
     node.addControl(
       'sql',
-      new TextAreaControl(
+      new MonacoControl(
         data.sql || '',
         (value) => {
           data.sql = value;
         },
-        'Enter transformation SQL...',
+        'sql',
         'SQL Transformation',
-        10
+        280
       )
     );
 
@@ -191,14 +191,14 @@ export class NodeFactory {
 
     node.addControl(
       'sql',
-      new TextAreaControl(
+      new MonacoControl(
         data.sql || '',
         (value) => {
           data.sql = value;
         },
-        'Enter snapshot SQL...',
+        'sql',
         'SQL Query',
-        6
+        220
       )
     );
 
@@ -254,14 +254,14 @@ export class NodeFactory {
 
     node.addControl(
       'sql',
-      new TextAreaControl(
+      new MonacoControl(
         data.sql || '',
         (value) => {
           data.sql = value;
         },
-        'Enter test SQL...',
+        'sql',
         'Test SQL',
-        6
+        220
       )
     );
 
@@ -296,14 +296,14 @@ export class NodeFactory {
 
     node.addControl(
       'sql',
-      new TextAreaControl(
+      new MonacoControl(
         data.sql || '',
         (value) => {
           data.sql = value;
         },
-        'Enter macro code...',
+        'sql',
         'Macro Code',
-        8
+        250
       )
     );
 

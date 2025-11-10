@@ -604,12 +604,14 @@ export const DBTVisualBuilder: React.FC = () => {
         }
 
         if (newNode) {
-          // Override with saved data
-          newNode.id = savedNode.id;
+          // Store original ID before adding to editor
+          const originalId = savedNode.id;
+
+          // Update node label and data (but NOT id - that breaks input/output references)
           newNode.label = savedNode.label;
           (newNode as any).data = { ...data };
 
-          // Add to editor
+          // Add to editor (this will assign a new ID)
           await editor.addNode(newNode);
 
           // Set position if available
@@ -617,7 +619,8 @@ export const DBTVisualBuilder: React.FC = () => {
             await area.translate(newNode.id, savedNode.position);
           }
 
-          nodeMap.set(savedNode.id, newNode);
+          // Map old ID to new node for connection restoration
+          nodeMap.set(originalId, newNode);
         }
       }
 

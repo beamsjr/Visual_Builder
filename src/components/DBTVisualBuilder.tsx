@@ -27,6 +27,7 @@ import { NodeFactory } from '../nodes/NodeFactory';
 import type { Schemes } from '../types/editor';
 import { DBTGenerator } from '../utils/dbtGenerator';
 import { DBTExporter } from '../utils/dbtExporter';
+import { DBTImporter } from '../utils/dbtImporter';
 import { HistoryManager } from '../utils/historyManager';
 import type { DBTNodeData } from '../types/dbt';
 
@@ -34,6 +35,7 @@ type AreaExtra = ReactArea2D<Schemes> | MinimapExtra;
 
 export const DBTVisualBuilder: React.FC = () => {
   const editorRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const editorInstanceRef = useRef<NodeEditor<Schemes> | null>(null);
   const areaInstanceRef = useRef<AreaPlugin<Schemes, AreaExtra> | null>(null);
   const arrangeInstanceRef = useRef<AutoArrangePlugin<Schemes> | null>(null);
@@ -823,8 +825,95 @@ export const DBTVisualBuilder: React.FC = () => {
     return Array.from(tagsSet).sort();
   };
 
+  const handleImportFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files || !editorInstanceRef.current || !areaInstanceRef.current) return;
+
+    try {
+      const importedNodes = await DBTImporter.importFiles(event.target.files);
+
+      if (importedNodes.length === 0) {
+        alert('No valid DBT files found to import.');
+        return;
+      }
+
+      // Create nodes from imported data
+      let createdCount = 0;
+      for (const imported of importedNodes) {
+        let newNode;
+
+        switch (imported.type) {
+          case 'source':
+            newNode = NodeFactory.createSourceNode(
+              imported.name,
+              imported.data.schema || '',
+              imported.name
+            );
+            break;
+          case 'model':
+            newNode = NodeFactory.createModelNode(
+              imported.name,
+              imported.data.materialization || 'table'
+            );
+            // Set SQL if available
+            if (imported.sql) {
+              (newNode as any).data.sql = imported.sql;
+            }
+            break;
+          case 'snapshot':
+            newNode = NodeFactory.createSnapshotNode(imported.name);
+            break;
+          case 'seed':
+            newNode = NodeFactory.createSeedNode(imported.name);
+            break;
+          case 'test':
+            newNode = NodeFactory.createTestNode(imported.name);
+            break;
+          default:
+            continue;
+        }
+
+        // Apply imported data
+        if (newNode) {
+          const nodeData = (newNode as any).data;
+          if (imported.data.description) nodeData.description = imported.data.description;
+          if (imported.data.tags) nodeData.tags = imported.data.tags;
+          if (imported.data.columns) nodeData.columns = imported.data.columns;
+          if (imported.data.database) nodeData.database = imported.data.database;
+
+          await editorInstanceRef.current.addNode(newNode);
+          createdCount++;
+        }
+      }
+
+      // Auto-arrange imported nodes
+      if (arrangeInstanceRef.current && areaInstanceRef.current) {
+        await arrangeInstanceRef.current.layout();
+        AreaExtensions.zoomAt(areaInstanceRef.current, editorInstanceRef.current.getNodes());
+      }
+
+      captureState();
+      alert(`Successfully imported ${createdCount} nodes from ${event.target.files.length} file(s).`);
+
+      // Reset file input
+      event.target.value = '';
+    } catch (error) {
+      console.error('Error importing files:', error);
+      alert('Error importing files. Check console for details.');
+    }
+  };
+
   return (
     <div className="relative w-full h-screen bg-gray-900">
+      {/* Hidden file input for importing */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept=".yml,.yaml,.sql"
+        onChange={handleImportFiles}
+        style={{ display: 'none' }}
+      />
+
       {/* Context Menu */}
       {contextMenu && (
         <ContextMenu
@@ -960,6 +1049,13 @@ export const DBTVisualBuilder: React.FC = () => {
 
           {/* File Operations */}
           <div className="ml-auto flex gap-2">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm font-medium transition-colors"
+              title="Import DBT Files (.yml, .yaml, .sql)"
+            >
+              📥 Import
+            </button>
             <button
               onClick={() => saveToLocalStorage(editorInstanceRef.current!)}
               className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition-colors"

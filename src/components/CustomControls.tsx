@@ -193,5 +193,90 @@ export const MonacoControlComponent: React.FC<{ data: MonacoControl }> = ({ data
   );
 };
 
+// Tag Control
+export class TagControl extends ClassicPreset.Control {
+  tags: string[];
+  onChange: (tags: string[]) => void;
+  label: string;
+
+  constructor(
+    tags: string[] = [],
+    onChange: (tags: string[]) => void,
+    label: string = 'Tags'
+  ) {
+    super();
+    this.tags = tags;
+    this.onChange = onChange;
+    this.label = label;
+  }
+}
+
+export const TagControlComponent: React.FC<{ data: TagControl }> = ({ data }) => {
+  const [newTag, setNewTag] = useState('');
+  const [localTags, setLocalTags] = useState(data.tags);
+
+  const addTag = () => {
+    if (newTag.trim() && !localTags.includes(newTag.trim())) {
+      const updatedTags = [...localTags, newTag.trim()];
+      setLocalTags(updatedTags);
+      data.onChange(updatedTags);
+      setNewTag('');
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    const updatedTags = localTags.filter(tag => tag !== tagToRemove);
+    setLocalTags(updatedTags);
+    data.onChange(updatedTags);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addTag();
+    }
+  };
+
+  return (
+    <div className="control-wrapper">
+      {data.label && <label className="control-label">{data.label}</label>}
+      <div className="flex flex-wrap gap-1 mb-2">
+        {localTags.map((tag) => (
+          <span
+            key={tag}
+            className="inline-flex items-center gap-1 px-2 py-1 bg-blue-600 text-white text-xs rounded"
+          >
+            {tag}
+            <button
+              onClick={() => removeTag(tag)}
+              className="hover:text-red-300 font-bold"
+              type="button"
+            >
+              ×
+            </button>
+          </span>
+        ))}
+      </div>
+      <div className="flex gap-1">
+        <input
+          type="text"
+          value={newTag}
+          onChange={(e) => setNewTag(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Add tag..."
+          className="control-input flex-1"
+        />
+        <button
+          onClick={addTag}
+          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
+          type="button"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // Export ColumnControl from ColumnEditor
 export { ColumnControl, ColumnEditorComponent } from './ColumnEditor';

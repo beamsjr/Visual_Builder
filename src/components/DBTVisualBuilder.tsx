@@ -14,11 +14,13 @@ import {
   SelectControlComponent,
   ColumnEditorComponent,
   MonacoControlComponent,
+  TagControlComponent,
   TextControl,
   TextAreaControl,
   SelectControl,
   ColumnControl,
-  MonacoControl
+  MonacoControl,
+  TagControl
 } from './CustomControls';
 import { ContextMenu } from './ContextMenu';
 import { NodeFactory } from '../nodes/NodeFactory';
@@ -38,6 +40,7 @@ export const DBTVisualBuilder: React.FC = () => {
   const historyManagerRef = useRef<HistoryManager>(new HistoryManager());
   const isRestoringRef = useRef(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTag, setSelectedTag] = useState<string>('');
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
   const [copiedNode, setCopiedNode] = useState<any>(null);
   const [canUndo, setCanUndo] = useState(false);
@@ -45,7 +48,7 @@ export const DBTVisualBuilder: React.FC = () => {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [showDependencies, setShowDependencies] = useState(true);
 
-  // Search functionality - highlight matching nodes
+  // Search and tag filtering functionality - highlight matching nodes
   useEffect(() => {
     if (!editorInstanceRef.current || !areaInstanceRef.current) return;
 
@@ -58,16 +61,24 @@ export const DBTVisualBuilder: React.FC = () => {
 
       const label = node.label.toLowerCase();
       const data = (node as any).data;
+
+      // Search term matching
       const matchesSearch = !searchTerm ||
         label.includes(searchTerm.toLowerCase()) ||
         (data.description && data.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (data.schema && data.schema.toLowerCase().includes(searchTerm.toLowerCase()));
 
-      if (matchesSearch && searchTerm) {
+      // Tag filtering
+      const matchesTag = !selectedTag || (data.tags && data.tags.includes(selectedTag));
+
+      const matches = matchesSearch && matchesTag;
+      const hasFilter = searchTerm || selectedTag;
+
+      if (matches && hasFilter) {
         nodeView.element.style.opacity = '1';
         nodeView.element.style.transform = 'scale(1.05)';
         nodeView.element.style.boxShadow = '0 0 20px rgba(100, 108, 255, 0.6)';
-      } else if (searchTerm) {
+      } else if (hasFilter) {
         nodeView.element.style.opacity = '0.3';
         nodeView.element.style.transform = 'scale(1)';
         nodeView.element.style.boxShadow = '';
@@ -77,7 +88,7 @@ export const DBTVisualBuilder: React.FC = () => {
         nodeView.element.style.boxShadow = '';
       }
     });
-  }, [searchTerm]);
+  }, [searchTerm, selectedTag]);
 
   // Dependency visualization - highlight upstream/downstream nodes
   useEffect(() => {
@@ -190,6 +201,9 @@ export const DBTVisualBuilder: React.FC = () => {
               }
               if (data.payload instanceof MonacoControl) {
                 return MonacoControlComponent as any;
+              }
+              if (data.payload instanceof TagControl) {
+                return TagControlComponent as any;
               }
               return null;
             },
@@ -793,6 +807,22 @@ export const DBTVisualBuilder: React.FC = () => {
     }
   };
 
+  const getAllTags = (): string[] => {
+    if (!editorInstanceRef.current) return [];
+
+    const nodes = editorInstanceRef.current.getNodes();
+    const tagsSet = new Set<string>();
+
+    nodes.forEach(node => {
+      const data = (node as any).data;
+      if (data.tags && Array.isArray(data.tags)) {
+        data.tags.forEach((tag: string) => tagsSet.add(tag));
+      }
+    });
+
+    return Array.from(tagsSet).sort();
+  };
+
   return (
     <div className="relative w-full h-screen bg-gray-900">
       {/* Context Menu */}
@@ -916,6 +946,16 @@ export const DBTVisualBuilder: React.FC = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded text-white text-sm placeholder-gray-400 focus:outline-none focus:border-blue-500"
             />
+            <select
+              value={selectedTag}
+              onChange={(e) => setSelectedTag(e.target.value)}
+              className="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
+            >
+              <option value="">All Tags</option>
+              {getAllTags().map(tag => (
+                <option key={tag} value={tag}>{tag}</option>
+              ))}
+            </select>
           </div>
 
           {/* File Operations */}
